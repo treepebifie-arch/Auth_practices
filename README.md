@@ -59,5 +59,5 @@ The server will run on http://localhost: (the port specified in your .env).
 | **PUT** | `/api/users/resend-otp` | Resends a new otp if otp has expired. |
 | **GET** | `/api/users/get-all-users` | allows only admin to see all users | 
 | **PATCH** | `/api/users/make-admin` | allows an admin to change the role of a user to an admin | 
-| **PUT** | `/api/user/resetpassword`| Create or Reset a new password for users. |
+
 

@@ -21,5 +21,5 @@ app.get('/', (req, res) => {
 
 app.listen (port, () => {
     dbConnection ()
-    console.log (`app listening at port ${port}`)
+    console.log (`app listening at http://localhost:${port}`)
 })

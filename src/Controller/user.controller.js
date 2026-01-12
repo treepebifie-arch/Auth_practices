@@ -2,7 +2,8 @@ const bcrypt = require ('bcryptjs');
 const jwt = require ('jsonwebtoken');
 const User = require('../Models/user.models');
 const sendEmail = require('../Config/email');
-const e = require('express');
+const express = require('express');
+const  cloudinary  = require('../Images/cloudinary');
 
 
 const signUp = async (req, res) => {
@@ -138,6 +139,30 @@ const updateRole = async (req, res) => {
         console.error('error', err)
         return res.status(500).json('server error')
     }
-}
+};
 
-module.exports = {signUp, login, verifyOtp, resendOtp, getAllUsers, updateRole}
+//upload Profile Picture
+const uploadProfilePicture = async(req, res) => {
+    const {userId} = req.user;
+    try {
+        if (!req.file) {
+            return res.status(400).json ({message: 'no file uploaded'})
+        };
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json ({message: 'user not found'})
+        };
+        const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+            folder: 'profile_picture',
+            public_id: `user_${userId}_profile`,
+        });
+        user.profilePicture = uploadResult.secure_url;
+        await user.save()
+        return res.status(200).json({message: 'Profile picture uploaded successfully'})
+    } catch (err) {
+        console.error ('profile picture upload error', err)
+        return res.status(500).json('server error')
+    };
+};
+
+module.exports = {signUp, login, verifyOtp, resendOtp, getAllUsers, updateRole, uploadProfilePicture}

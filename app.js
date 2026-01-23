@@ -4,6 +4,7 @@ const morgan = require ('morgan')
 require ('dotenv').config()
 const dbConnection = require('./src/Config/db')
 const router = require('./src/Routes/user.routes')
+const Route = require('./src/Routes/wallet.routes')
 const app = express()
 const port = process.env.PORT || 4000
 
@@ -12,6 +13,7 @@ app.use (express.json());
 app.use (morgan ('dev'));
 
 app.use ('/api/users', router)
+app.use ('/api/wallet', Route)
 
 
 app.get('/', (req, res) => {

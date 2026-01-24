@@ -13,7 +13,7 @@ const walletSchema = new mongoose.Schema ({
     currency: {
         type: String,
         required: true,
-        default: NGN
+        default: 'NGN'
     },
     accountNumber: {
         type: String,

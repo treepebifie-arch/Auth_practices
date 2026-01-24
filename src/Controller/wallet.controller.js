@@ -1,5 +1,5 @@
-const UserWallet = require("../models/user.wallets");
-const Wallet = require("../models/user.wallets");
+
+const Wallet = require("../Models/wallet.models");
 const mongoose = require("mongoose");
 const Flutterwave = require("flutterwave-node-v3");
 const axios = require("axios");
@@ -524,8 +524,6 @@ module.exports = {
   createWallet,
   getAllWallets,
   transferFunds,
-  createRedirectUrl,
-  flutterwaveWebhook,
   paystackInitialize,
   paystackVerify,
   paystackWebhook,

@@ -7,11 +7,11 @@ const User = require('../Models/user.models');
 const createRedirectUrl = async (req,res) => {
     const {userId} = req.user
     try {
-        const {amount, currency, redirect_Url} = req.body;
+        const {amount, currency} = req.body;
         if (!userId){
             return res.status(400).json({message: 'User Id required'})
         };
-        if (!amount || !currency || !redirect_Url) {
+        if (!amount || !currency) {
             return res.status(400).json({message: 'all fields are required'})
         };
         // get users details for the payment

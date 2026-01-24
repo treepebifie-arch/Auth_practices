@@ -1,9 +1,10 @@
 const express = require ('express')
 const { createRedirectUrl } = require('../Controller/flutterwave.controller')
+const { isAuth } = require ('../Config/auth.js')
 
 const Route = express.Router()
 
-Route.post ('/make-payment', createRedirectUrl)
+Route.post ('/make-payment', isAuth, createRedirectUrl)
 
 
 module.exports = Route

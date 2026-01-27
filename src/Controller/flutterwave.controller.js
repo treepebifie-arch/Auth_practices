@@ -1,6 +1,7 @@
 const flutterwave = require ('flutterwave-node-v3');
 const axios = require("axios");
 const User = require('../Models/user.models');
+const Wallet = require('../Models/wallet.models');
 
 
 //create Redirect link URL with flutterwave

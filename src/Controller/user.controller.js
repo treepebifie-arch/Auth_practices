@@ -7,8 +7,8 @@ const  cloudinary  = require('../Images/cloudinary');
 
 
 const signUp = async (req, res) => {
-    const {name, email, password} = req.body
-    if (!name || !email || !password) {
+    const {name, email, phoneNumber, password} = req.body
+    if (!name || !email || !phoneNumber || !password) {
         return res.status(400).json('all fields are required')
     }
     const existingUser = await User.findOne({email})
@@ -22,6 +22,7 @@ const signUp = async (req, res) => {
         name,
         email,
         password: hashedPassword,
+        phoneNumber,
         otp, 
         otpExpiry
     })

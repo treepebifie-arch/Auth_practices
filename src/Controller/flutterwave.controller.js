@@ -2,6 +2,8 @@ const flutterwave = require ('flutterwave-node-v3');
 const axios = require("axios");
 const User = require('../Models/user.models');
 const Wallet = require('../Models/wallet.models');
+const Transaction = require('../Models/transaction.models');
+const mongoose = require('mongoose');
 
 
 //create Redirect link URL with flutterwave
@@ -79,6 +81,7 @@ const createRedirectUrl = async (req, res) => {
 
 // Flutterwave Webhook Handler
 const flutterwaveWebhook = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
     // Verify the webhook signature
     const secretHash = process.env.FLW_SECRET_HASH;
@@ -90,6 +93,7 @@ const flutterwaveWebhook = async (req, res) => {
     }
 
     const payload = req.body;
+    console.log("Webhook payload:", payload);
 
     // Check if payment was successful
     if (payload.status === "successful" && payload.event === "charge.completed") {
@@ -105,6 +109,8 @@ const flutterwaveWebhook = async (req, res) => {
         }
       );
 
+      console.log("Verification response:", verifyResponse.data);
+
       const verifyData = verifyResponse.data;
 
       if (
@@ -117,42 +123,98 @@ const flutterwaveWebhook = async (req, res) => {
         const txParts = tx_ref.split("-");
         const userId = txParts[txParts.length - 1];
 
-        // Find user's wallet and credit it
-        const wallet = await Wallet.findOne({ userId: userId });
+        //Start a session for transaction
+        session.startTransaction();
+
+        //Automatically lock the transaction record by updating status to 'processing'
+        const transaction = await Transaction.findOneAndUpdate(
+          { txRef: tx_ref, status: "pending" },
+          { 
+            $set: { 
+              status: "processing",
+              lockedAt: new Date()
+           } 
+         },
+          { new: true, session }
+        );
+
+        console.log("Locked transaction:", transaction);
+
+        if (!transaction) {
+          await session.abortTransaction();
+          // If transaction not found or already processed
+          const existingTransaction = await Transaction.findOne({ txRef: tx_ref });
+          if (existingTransaction && existingTransaction.status !== "pending") {
+            console.log("Transaction already processed:", existingTransaction.status);
+            return res.status(200).json({ message: "Transaction already processed" });
+          }
+          return res.status(404).json({ message: "Transaction not found" });
+        }
+
+        //automatically lock and update the wallet balance
+        //Using findOneAndUpdate ensures atomicity and prevents race conditions
+
+        const wallet = await Wallet.findOneAndUpdate(
+          {_id: transaction.walletId},
+          { $inc: { balance: amount },
+            $set: { lastUpdatedAt: new Date() }
+           },
+          { new: true, session }
+        );
+
+        console.log("user wallet found and updated:", wallet);
 
         if (wallet) {
-          // Credit the wallet
-          await Wallet.findOneAndUpdate(
-            { userId: userId },
-            { $inc: { balance: amount } },
-            { new: true }
-          );
-
           // Get user for email notification
-          const user = await User.findById(userId);
+          const user = await User.findById(transaction.userId).session(session);
+          console.log("user found for notification:", user);
 
           if (user) {
             // Send success email (optional)
             console.log(`Wallet funded successfully for user: ${user.email}, Amount: ${amount} ${currency}`);
-          }
+            }
 
-          return res.status(200).json({ message: "Wallet funded successfully" });
-        } else {
-          console.error("Wallet not found for userId:", userId);
-          return res.status(404).json({ message: "Wallet not found" });
-        }
-      } else {
-        console.error("Transaction verification failed", verifyData);
-        return res.status(400).json({ message: "Transaction verification failed" });
-      }
+            // Update transaction status to successful and record 'completed'
+
+            await Transaction.findByIdAndUpdate(
+            {txRef: tx_ref},
+            { $set: { 
+                status: "successful",
+                completedAt: new Date(),
+                lockedAt: null
+              } 
+            },
+            { new: true, session }
+            );
+
+            // Commit the transaction
+            await session.commitTransaction();
+
+            return res.status(200).json({ message: "Wallet funded successfully" });
+            } else {
+            await session.abortTransaction();
+            console.error("Wallet not found for userId:", userId);
+            return res.status(404).json({ message: "Wallet not found" });
+            } 
+          } else {
+          console.error("Transaction verification failed", verifyData);
+          return res.status(400).json({ message: "Transaction verification failed" });
+        } 
     }
 
     // For other events, just acknowledge receipt
     return res.status(200).json({ message: "Webhook received" });
   } catch (e) {
+    // Abort transaction in case of error
+    if (session.inTransaction()) {
+    await session.abortTransaction();
+    }
     console.error("Webhook error:", e);
     return res.status(500).json({ message: "Webhook processing failed" });
+  }  finally {
+    // End the session
+    session.endSession();
   }
 };
-
+         
 module.exports = {createRedirectUrl, flutterwaveWebhook}
